@@ -10,7 +10,7 @@ struct StrongSignalBanner: View {
                 .font(.title3)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("New strong BLE signal")
+                Text("Confirmed new strong BLE signal")
                     .font(.headline)
                 Text("\(alert.deviceName) • \(alert.rssi) dBm")
                     .font(.caption)

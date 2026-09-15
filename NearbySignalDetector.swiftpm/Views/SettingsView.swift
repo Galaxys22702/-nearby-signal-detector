@@ -13,7 +13,13 @@ struct SettingsView: View {
                     step: 5
                 )
 
-                Text("A new device must be at or above this received signal level before the app shows an in-app alert.")
+                Stepper(
+                    "Confirm after \(scanner.strongSignalConfirmationCount) observations",
+                    value: $scanner.strongSignalConfirmationCount,
+                    in: 2 ... 8
+                )
+
+                Text("A new device must stay at or above the threshold for the selected number of consecutive received advertisements before the app shows an in-app alert. This reduces one-sample RSSI spikes.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -31,8 +37,14 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Signal trend") {
+                Text("Getting stronger/weaker compares the average of the newest four RSSI samples with the preceding four. Changes under 4 dB are shown as steady to reduce noise.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Important limitation") {
-                Text("This app measures BLE advertisements received by the iPhone. It cannot identify a police vehicle, undercover vehicle, owner, exact location, or arbitrary non-Bluetooth radio transmission.")
+                Text("This app measures BLE advertisements received by the iPhone. It cannot identify a police vehicle, undercover vehicle, owner, exact distance, direction, exact location, or arbitrary non-Bluetooth radio transmission.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
