@@ -15,7 +15,7 @@ let package = Package(
             bundleIdentifier: "com.robtheproducer.nearbysignaldetector",
             displayVersion: "0.2.0",
             bundleVersion: "2",
-            appIcon: .placeholder(icon: .antennaRadiowavesLeftAndRight),
+            appIcon: .placeholder(icon: .lightningBolt),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .phone,
