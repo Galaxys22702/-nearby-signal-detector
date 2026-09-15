@@ -1,0 +1,32 @@
+name: iOS compile check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: NearbySignalDetector.swiftpm
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        working-directory: NearbySignalDetector.swiftpm
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project NearbySignalDetector.xcodeproj \
+            -scheme NearbySignalDetector \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
