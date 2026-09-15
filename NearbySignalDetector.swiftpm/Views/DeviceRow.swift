@@ -23,9 +23,13 @@ struct DeviceRow: View {
                     }
                 }
 
-                Text(device.signalLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text(device.signalLabel)
+
+                    Label(device.signalTrend.label, systemImage: device.signalTrend.systemImage)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Spacer()

@@ -1,21 +1,27 @@
-# Nearby Signal Detector v0.2
+# Nearby Signal Detector v0.3
 
 Native SwiftUI/CoreBluetooth prototype for iPhone and iPad.
 
 ## Current capabilities
 
 - Foreground BLE advertisement scanning.
-- Live RSSI and smoothed RSSI.
-- Strongest-signal dashboard.
+- Live RSSI with exponential smoothing.
+- Signal trend detection: getting stronger, steady, or getting weaker.
+- Dedicated radar-style live view where radius represents received signal strength.
 - Session baseline and NEW-device marking.
-- Configurable in-app alert when a new device crosses an RSSI threshold.
+- Configurable strong-signal threshold.
+- Multi-observation confirmation before a new strong-signal alert is raised.
 - Automatic stale-device removal.
 - Live RSSI history charts.
 - Advertisement metadata inspection when iOS exposes it.
 
+## Radar semantics
+
+The radar is a signal-strength visualisation, not a direction finder. Stronger received BLE signals are drawn nearer the centre. The angle around the radar is only used to separate markers visually and does not represent physical direction or position.
+
 ## Important limitation
 
-This app cannot identify police or undercover vehicles, a device owner, or an exact physical location from BLE RSSI. It also cannot scan arbitrary RF frequencies with the iPhone radio hardware.
+This app cannot identify police or undercover vehicles, a device owner, exact distance, direction, or an exact physical location from BLE RSSI. It also cannot scan arbitrary RF frequencies with the iPhone radio hardware.
 
 ## Swift Playground
 

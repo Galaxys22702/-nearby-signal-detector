@@ -9,12 +9,14 @@ final class BLEScanner: NSObject, ObservableObject {
     @Published private(set) var latestAlert: SignalAlert?
 
     @Published var strongSignalThreshold = -55
+    @Published var strongSignalConfirmationCount = 3
     @Published var staleDeviceSeconds: TimeInterval = 15
     @Published var showOnlyNew = false
 
     private var centralManager: CBCentralManager!
     private var devicesByID: [UUID: BLEDevice] = [:]
     private var alertedStrongIDs: Set<UUID> = []
+    private var strongObservationCounts: [UUID: Int] = [:]
     private var cleanupTimer: Timer?
 
     override init() {
@@ -45,6 +47,15 @@ final class BLEScanner: NSObject, ObservableObject {
         }
     }
 
+    var strongNewDeviceCount: Int {
+        guard !baselineIDs.isEmpty else { return 0 }
+        return devices.reduce(into: 0) { count, device in
+            if !baselineIDs.contains(device.id), device.displayRSSI >= strongSignalThreshold {
+                count += 1
+            }
+        }
+    }
+
     func startScanning() {
         guard centralManager.state == .poweredOn else { return }
 
@@ -64,18 +75,21 @@ final class BLEScanner: NSObject, ObservableObject {
         devicesByID.removeAll()
         devices.removeAll()
         alertedStrongIDs.removeAll()
+        strongObservationCounts.removeAll()
         latestAlert = nil
     }
 
     func setBaseline() {
         baselineIDs = Set(devicesByID.keys)
         alertedStrongIDs.removeAll()
+        strongObservationCounts.removeAll()
         latestAlert = nil
     }
 
     func clearBaseline() {
         baselineIDs.removeAll()
         alertedStrongIDs.removeAll()
+        strongObservationCounts.removeAll()
         latestAlert = nil
     }
 
@@ -107,21 +121,38 @@ final class BLEScanner: NSObject, ObservableObject {
         for id in staleIDs {
             devicesByID.removeValue(forKey: id)
             alertedStrongIDs.remove(id)
+            strongObservationCounts.removeValue(forKey: id)
         }
         publishDevices()
     }
 
     private func evaluateStrongNewSignal(_ device: BLEDevice) {
+        let id = device.id
+
         guard !baselineIDs.isEmpty,
-              !baselineIDs.contains(device.id),
-              device.displayRSSI >= strongSignalThreshold,
-              !alertedStrongIDs.contains(device.id) else {
+              !baselineIDs.contains(id),
+              !alertedStrongIDs.contains(id) else {
+            strongObservationCounts[id] = 0
             return
         }
 
-        alertedStrongIDs.insert(device.id)
+        guard device.displayRSSI >= strongSignalThreshold else {
+            strongObservationCounts[id] = 0
+            return
+        }
+
+        let observationCount = (strongObservationCounts[id] ?? 0) + 1
+        strongObservationCounts[id] = observationCount
+
+        let requiredCount = max(1, strongSignalConfirmationCount)
+        guard observationCount >= requiredCount,
+              device.advertisementCount >= requiredCount else {
+            return
+        }
+
+        alertedStrongIDs.insert(id)
         latestAlert = SignalAlert(
-            deviceID: device.id,
+            deviceID: id,
             deviceName: device.name,
             rssi: device.displayRSSI,
             timestamp: Date()

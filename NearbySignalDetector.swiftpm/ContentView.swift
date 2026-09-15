@@ -17,6 +17,13 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
+                        RadarView(scanner: scanner)
+                    } label: {
+                        Image(systemName: "scope")
+                    }
+                    .accessibilityLabel("Open signal radar")
+
+                    NavigationLink {
                         SettingsView(scanner: scanner)
                     } label: {
                         Image(systemName: "slider.horizontal.3")
@@ -83,7 +90,7 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Baseline contains \(scanner.baselineIDs.count) device identifiers. Strong new-signal threshold: \(scanner.strongSignalThreshold) dBm.")
+                    Text("Baseline contains \(scanner.baselineIDs.count) device identifiers. Strong new-signal threshold: \(scanner.strongSignalThreshold) dBm. Alerts require \(scanner.strongSignalConfirmationCount) consecutive strong observations.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -111,7 +118,7 @@ struct ContentView: View {
             }
 
             Section("What this means") {
-                Text("A stronger RSSI generally means the received Bluetooth signal is stronger at this iPhone. It does not establish exact distance, which car transmitted it, or who owns it.")
+                Text("A stronger RSSI generally means the received Bluetooth signal is stronger at this iPhone. Trend indicators compare recent samples. Neither establishes exact distance, direction, which car transmitted it, or who owns it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
