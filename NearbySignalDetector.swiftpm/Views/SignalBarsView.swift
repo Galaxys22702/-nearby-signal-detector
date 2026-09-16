@@ -4,12 +4,16 @@ struct SignalBarsView: View {
     let rssi: Int
 
     private var activeBars: Int {
-        switch rssi {
-        case -50...: return 4
-        case -65 ..< -50: return 3
-        case -80 ..< -65: return 2
-        default: return 1
+        if rssi >= -50 {
+            return 4
         }
+        if rssi >= -65 {
+            return 3
+        }
+        if rssi >= -80 {
+            return 2
+        }
+        return 1
     }
 
     var body: some View {
