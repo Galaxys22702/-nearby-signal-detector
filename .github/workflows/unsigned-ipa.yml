@@ -1,0 +1,63 @@
+name: Build unsigned iPhone IPA
+
+on:
+  push:
+    branches:
+      - main
+      - chore/unsigned-device-ipa
+    paths:
+      - 'NearbySignalDetector.swiftpm/**'
+      - '.github/workflows/unsigned-ipa.yml'
+  workflow_dispatch:
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: NearbySignalDetector.swiftpm
+        run: xcodegen generate
+
+      - name: Build unsigned device app
+        working-directory: NearbySignalDetector.swiftpm
+        run: |
+          set -o pipefail
+          rm -rf Build/Device Build/Payload Build/NearbySignalDetector-unsigned.ipa
+          mkdir -p Build/Device
+          xcodebuild \
+            -project NearbySignalDetector.xcodeproj \
+            -scheme NearbySignalDetector \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            CONFIGURATION_BUILD_DIR="$PWD/Build/Device" \
+            clean build
+
+      - name: Package unsigned IPA
+        working-directory: NearbySignalDetector.swiftpm
+        run: |
+          set -euo pipefail
+          APP_PATH="Build/Device/NearbySignalDetector.app"
+          test -d "$APP_PATH"
+          mkdir -p Build/Payload
+          cp -R "$APP_PATH" Build/Payload/
+          cd Build
+          /usr/bin/zip -qry NearbySignalDetector-unsigned.ipa Payload
+          /usr/bin/unzip -t NearbySignalDetector-unsigned.ipa
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NearbySignalDetector-unsigned-ipa
+          path: NearbySignalDetector.swiftpm/Build/NearbySignalDetector-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
