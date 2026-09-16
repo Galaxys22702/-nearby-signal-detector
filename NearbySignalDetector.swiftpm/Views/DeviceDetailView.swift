@@ -16,7 +16,7 @@ struct DeviceDetailView: View {
                         LabeledContent("Advertisements", value: "\(device.advertisementCount)")
                         LabeledContent(
                             "Baseline status",
-                            value: scanner.isNewRelativeToBaseline(device) ? "New since baseline" : "Known / no baseline"
+                            value: baselineStatus(for: device)
                         )
                     }
 
@@ -92,5 +92,15 @@ struct DeviceDetailView: View {
                 )
             }
         }
+    }
+
+    private func baselineStatus(for device: BLEDevice) -> String {
+        guard !scanner.baselineIDs.isEmpty else {
+            return "No baseline set"
+        }
+
+        return scanner.isNewRelativeToBaseline(device)
+            ? "New since baseline"
+            : "Present in baseline"
     }
 }
