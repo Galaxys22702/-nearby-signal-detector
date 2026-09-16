@@ -14,13 +14,11 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: .
-        excludes:
-          - Package.swift
-          - AdditionalInfo.plist
-          - project.yml
-          - README.md
-          - Build
+      - path: App.swift
+      - path: ContentView.swift
+      - path: Models
+      - path: Services
+      - path: Views
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robtheproducer.nearbysignaldetector

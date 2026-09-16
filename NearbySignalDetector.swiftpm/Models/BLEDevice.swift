@@ -18,16 +18,16 @@ struct BLEDevice: Identifiable, Hashable {
     }
 
     var signalLabel: String {
-        switch displayRSSI {
-        case -50...:
+        if displayRSSI >= -50 {
             return "Very strong"
-        case -65 ..< -50:
-            return "Strong"
-        case -80 ..< -65:
-            return "Moderate"
-        default:
-            return "Weak"
         }
+        if displayRSSI >= -65 {
+            return "Strong"
+        }
+        if displayRSSI >= -80 {
+            return "Moderate"
+        }
+        return "Weak"
     }
 
     var strengthFraction: Double {
@@ -51,13 +51,12 @@ struct BLEDevice: Identifiable, Hashable {
     var signalTrend: SignalTrend {
         guard history.count >= 8 else { return .unknown }
 
-        switch trendDelta {
-        case 4...:
+        if trendDelta >= 4 {
             return .rising
-        case ...(-4):
-            return .falling
-        default:
-            return .steady
         }
+        if trendDelta <= -4 {
+            return .falling
+        }
+        return .steady
     }
 }
