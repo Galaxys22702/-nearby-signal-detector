@@ -19,11 +19,14 @@ targets:
       - path: Models
       - path: Services
       - path: Views
+    resources:
+      - path: Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.robtheproducer.nearbysignaldetector
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: Build/Info.plist
       properties:
