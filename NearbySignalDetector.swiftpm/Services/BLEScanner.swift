@@ -283,7 +283,7 @@ extension BLEScanner: CBCentralManagerDelegate {
         ).sorted()
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
         let manufacturerDataHex = hexString(from: manufacturerData)
-        let isConnectable = (advertisementData[CBAdvertisementDataIsConnectableKey] as? NSNumber)?.boolValue
+        let isConnectable = (advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue
         let now = Date()
 
         if var existing = devicesByID[identifier] {
