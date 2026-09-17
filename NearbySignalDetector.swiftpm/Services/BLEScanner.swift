@@ -2,24 +2,77 @@ import Foundation
 import CoreBluetooth
 
 final class BLEScanner: NSObject, ObservableObject {
+    private enum PreferenceKey {
+        static let strongSignalThreshold = "strongSignalThreshold"
+        static let strongSignalConfirmationCount = "strongSignalConfirmationCount"
+        static let staleDeviceSeconds = "staleDeviceSeconds"
+        static let showOnlyNew = "showOnlyNew"
+        static let hideUnnamedDevices = "hideUnnamedDevices"
+    }
+
     @Published private(set) var devices: [BLEDevice] = []
     @Published private(set) var bluetoothState: CBManagerState = .unknown
     @Published private(set) var isScanning = false
     @Published private(set) var baselineIDs: Set<UUID> = []
+    @Published private(set) var baselineDate: Date?
     @Published private(set) var latestAlert: SignalAlert?
 
-    @Published var strongSignalThreshold = -55
-    @Published var strongSignalConfirmationCount = 3
-    @Published var staleDeviceSeconds: TimeInterval = 15
-    @Published var showOnlyNew = false
+    @Published var strongSignalThreshold = -55 {
+        didSet {
+            UserDefaults.standard.set(strongSignalThreshold, forKey: PreferenceKey.strongSignalThreshold)
+        }
+    }
+
+    @Published var strongSignalConfirmationCount = 3 {
+        didSet {
+            UserDefaults.standard.set(strongSignalConfirmationCount, forKey: PreferenceKey.strongSignalConfirmationCount)
+        }
+    }
+
+    @Published var staleDeviceSeconds: TimeInterval = 15 {
+        didSet {
+            UserDefaults.standard.set(staleDeviceSeconds, forKey: PreferenceKey.staleDeviceSeconds)
+        }
+    }
+
+    @Published var showOnlyNew = false {
+        didSet {
+            UserDefaults.standard.set(showOnlyNew, forKey: PreferenceKey.showOnlyNew)
+        }
+    }
+
+    @Published var hideUnnamedDevices = false {
+        didSet {
+            UserDefaults.standard.set(hideUnnamedDevices, forKey: PreferenceKey.hideUnnamedDevices)
+        }
+    }
 
     private var centralManager: CBCentralManager!
     private var devicesByID: [UUID: BLEDevice] = [:]
     private var alertedStrongIDs: Set<UUID> = []
     private var strongObservationCounts: [UUID: Int] = [:]
     private var cleanupTimer: Timer?
+    private var scanRequested = false
 
     override init() {
+        let defaults = UserDefaults.standard
+
+        if defaults.object(forKey: PreferenceKey.strongSignalThreshold) != nil {
+            strongSignalThreshold = min(max(defaults.integer(forKey: PreferenceKey.strongSignalThreshold), -95), -30)
+        }
+        if defaults.object(forKey: PreferenceKey.strongSignalConfirmationCount) != nil {
+            strongSignalConfirmationCount = min(max(defaults.integer(forKey: PreferenceKey.strongSignalConfirmationCount), 1), 10)
+        }
+        if defaults.object(forKey: PreferenceKey.staleDeviceSeconds) != nil {
+            staleDeviceSeconds = min(max(defaults.double(forKey: PreferenceKey.staleDeviceSeconds), 5), 120)
+        }
+        if defaults.object(forKey: PreferenceKey.showOnlyNew) != nil {
+            showOnlyNew = defaults.bool(forKey: PreferenceKey.showOnlyNew)
+        }
+        if defaults.object(forKey: PreferenceKey.hideUnnamedDevices) != nil {
+            hideUnnamedDevices = defaults.bool(forKey: PreferenceKey.hideUnnamedDevices)
+        }
+
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: .main)
         startCleanupTimer()
@@ -30,8 +83,17 @@ final class BLEScanner: NSObject, ObservableObject {
     }
 
     var visibleDevices: [BLEDevice] {
-        guard showOnlyNew, !baselineIDs.isEmpty else { return devices }
-        return devices.filter { !baselineIDs.contains($0.id) }
+        var result = devices
+
+        if hideUnnamedDevices {
+            result = result.filter { $0.name != "Unknown BLE device" }
+        }
+
+        if showOnlyNew, !baselineIDs.isEmpty {
+            result = result.filter { !baselineIDs.contains($0.id) }
+        }
+
+        return result
     }
 
     var strongestDevice: BLEDevice? {
@@ -47,26 +109,13 @@ final class BLEScanner: NSObject, ObservableObject {
         }
     }
 
-    var strongNewDeviceCount: Int {
-        guard !baselineIDs.isEmpty else { return 0 }
-        return devices.reduce(into: 0) { count, device in
-            if !baselineIDs.contains(device.id), device.displayRSSI >= strongSignalThreshold {
-                count += 1
-            }
-        }
-    }
-
     func startScanning() {
-        guard centralManager.state == .poweredOn else { return }
-
-        centralManager.scanForPeripherals(
-            withServices: nil,
-            options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
-        )
-        isScanning = true
+        scanRequested = true
+        beginScanIfPossible()
     }
 
     func stopScanning() {
+        scanRequested = false
         centralManager.stopScan()
         isScanning = false
     }
@@ -81,6 +130,7 @@ final class BLEScanner: NSObject, ObservableObject {
 
     func setBaseline() {
         baselineIDs = Set(devicesByID.keys)
+        baselineDate = Date()
         alertedStrongIDs.removeAll()
         strongObservationCounts.removeAll()
         latestAlert = nil
@@ -88,9 +138,19 @@ final class BLEScanner: NSObject, ObservableObject {
 
     func clearBaseline() {
         baselineIDs.removeAll()
+        baselineDate = nil
         alertedStrongIDs.removeAll()
         strongObservationCounts.removeAll()
         latestAlert = nil
+        showOnlyNew = false
+    }
+
+    func resetSettings() {
+        strongSignalThreshold = -55
+        strongSignalConfirmationCount = 3
+        staleDeviceSeconds = 15
+        showOnlyNew = false
+        hideUnnamedDevices = false
     }
 
     func dismissAlert() {
@@ -103,6 +163,20 @@ final class BLEScanner: NSObject, ObservableObject {
 
     func device(withID id: UUID) -> BLEDevice? {
         devicesByID[id]
+    }
+
+    private func beginScanIfPossible() {
+        guard scanRequested,
+              centralManager.state == .poweredOn,
+              !isScanning else {
+            return
+        }
+
+        centralManager.scanForPeripherals(
+            withServices: nil,
+            options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
+        )
+        isScanning = true
     }
 
     private func startCleanupTimer() {
@@ -123,6 +197,11 @@ final class BLEScanner: NSObject, ObservableObject {
             alertedStrongIDs.remove(id)
             strongObservationCounts.removeValue(forKey: id)
         }
+
+        if let alertID = latestAlert?.deviceID, staleIDs.contains(alertID) {
+            latestAlert = nil
+        }
+
         publishDevices()
     }
 
@@ -168,6 +247,12 @@ final class BLEScanner: NSObject, ObservableObject {
         }
     }
 
+    private func sanitizedName(_ name: String?) -> String? {
+        guard let name else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func hexString(from data: Data?) -> String? {
         guard let data, !data.isEmpty else { return nil }
         return data.map { String(format: "%02X", $0) }.joined(separator: " ")
@@ -178,7 +263,10 @@ extension BLEScanner: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         bluetoothState = central.state
 
-        if central.state != .poweredOn {
+        if central.state == .poweredOn {
+            beginScanIfPossible()
+        } else {
+            central.stopScan()
             isScanning = false
         }
     }
@@ -194,10 +282,15 @@ extension BLEScanner: CBCentralManagerDelegate {
 
         let identifier = peripheral.identifier
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
-        let name = localName ?? peripheral.name ?? "Unknown BLE device"
-        let services = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?
-            .map(\.uuidString) ?? []
+        let advertisedName = sanitizedName(localName) ?? sanitizedName(peripheral.name)
+        let services = Array(
+            Set(
+                ((advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]) ?? [])
+                    .map(\.uuidString)
+            )
+        ).sorted()
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+        let manufacturerDataHex = hexString(from: manufacturerData)
         let isConnectable = (advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue
         let now = Date()
 
@@ -207,10 +300,20 @@ extension BLEScanner: CBCentralManagerDelegate {
             existing.smoothedRSSI = alpha * Double(rawRSSI) + (1 - alpha) * existing.smoothedRSSI
             existing.lastSeen = now
             existing.advertisementCount += 1
-            existing.name = name
-            existing.serviceUUIDs = services
-            existing.manufacturerDataHex = hexString(from: manufacturerData)
-            existing.isConnectable = isConnectable
+
+            if let advertisedName {
+                existing.name = advertisedName
+            }
+            if !services.isEmpty {
+                existing.serviceUUIDs = services
+            }
+            if let manufacturerDataHex {
+                existing.manufacturerDataHex = manufacturerDataHex
+            }
+            if let isConnectable {
+                existing.isConnectable = isConnectable
+            }
+
             existing.history.append(SignalSample(timestamp: now, rssi: rawRSSI))
 
             if existing.history.count > 120 {
@@ -222,14 +325,14 @@ extension BLEScanner: CBCentralManagerDelegate {
         } else {
             let device = BLEDevice(
                 id: identifier,
-                name: name,
+                name: advertisedName ?? "Unknown BLE device",
                 rssi: rawRSSI,
                 smoothedRSSI: Double(rawRSSI),
                 firstSeen: now,
                 lastSeen: now,
                 advertisementCount: 1,
                 serviceUUIDs: services,
-                manufacturerDataHex: hexString(from: manufacturerData),
+                manufacturerDataHex: manufacturerDataHex,
                 isConnectable: isConnectable,
                 history: [SignalSample(timestamp: now, rssi: rawRSSI)]
             )
