@@ -24,6 +24,17 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Device list") {
+                Toggle("Show only new devices", isOn: $scanner.showOnlyNew)
+                    .disabled(scanner.baselineIDs.isEmpty)
+
+                Toggle("Hide unnamed devices", isOn: $scanner.hideUnnamedDevices)
+
+                Text("Hiding unnamed devices can reduce clutter when many BLE advertisements do not include a readable local name.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Active-device window") {
                 Picker("Remove after", selection: $scanner.staleDeviceSeconds) {
                     Text("8 seconds").tag(TimeInterval(8))
@@ -41,6 +52,16 @@ struct SettingsView: View {
                 Text("Getting stronger/weaker compares the average of the newest four RSSI samples with the preceding four. Changes under 4 dB are shown as steady to reduce noise.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Preferences") {
+                Text("Scanner preferences are saved on this iPhone. The baseline itself is session-only so an old device set is not silently reused after the app restarts.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Button("Restore scanner defaults", role: .destructive) {
+                    scanner.resetSettings()
+                }
             }
 
             Section("Important limitation") {
