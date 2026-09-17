@@ -6,7 +6,6 @@ final class BLEScanner: NSObject, ObservableObject {
         static let strongSignalThreshold = "strongSignalThreshold"
         static let strongSignalConfirmationCount = "strongSignalConfirmationCount"
         static let staleDeviceSeconds = "staleDeviceSeconds"
-        static let showOnlyNew = "showOnlyNew"
         static let hideUnnamedDevices = "hideUnnamedDevices"
     }
 
@@ -35,11 +34,7 @@ final class BLEScanner: NSObject, ObservableObject {
         }
     }
 
-    @Published var showOnlyNew = false {
-        didSet {
-            UserDefaults.standard.set(showOnlyNew, forKey: PreferenceKey.showOnlyNew)
-        }
-    }
+    @Published var showOnlyNew = false
 
     @Published var hideUnnamedDevices = false {
         didSet {
@@ -65,9 +60,6 @@ final class BLEScanner: NSObject, ObservableObject {
         }
         if defaults.object(forKey: PreferenceKey.staleDeviceSeconds) != nil {
             staleDeviceSeconds = min(max(defaults.double(forKey: PreferenceKey.staleDeviceSeconds), 5), 120)
-        }
-        if defaults.object(forKey: PreferenceKey.showOnlyNew) != nil {
-            showOnlyNew = defaults.bool(forKey: PreferenceKey.showOnlyNew)
         }
         if defaults.object(forKey: PreferenceKey.hideUnnamedDevices) != nil {
             hideUnnamedDevices = defaults.bool(forKey: PreferenceKey.hideUnnamedDevices)
@@ -291,7 +283,7 @@ extension BLEScanner: CBCentralManagerDelegate {
         ).sorted()
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
         let manufacturerDataHex = hexString(from: manufacturerData)
-        let isConnectable = (advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue
+        let isConnectable = (advertisementData[CBAdvertisementDataIsConnectableKey] as? NSNumber)?.boolValue
         let now = Date()
 
         if var existing = devicesByID[identifier] {
