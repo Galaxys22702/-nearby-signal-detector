@@ -3,6 +3,7 @@ import CoreBluetooth
 
 struct ContentView: View {
     @StateObject private var scanner = BLEScanner()
+    @State private var searchText = ""
 
     var body: some View {
         NavigationStack {
@@ -14,6 +15,11 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Nearby Signals")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: "Search name, ID, or service"
+            )
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
@@ -28,6 +34,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "slider.horizontal.3")
                     }
+                    .accessibilityLabel("Open scanner settings")
 
                     Menu {
                         Button("Set current devices as baseline") {
@@ -45,6 +52,8 @@ struct ContentView: View {
                         Toggle("Show only new", isOn: $scanner.showOnlyNew)
                             .disabled(scanner.baselineIDs.isEmpty)
 
+                        Toggle("Hide unnamed devices", isOn: $scanner.hideUnnamedDevices)
+
                         Divider()
 
                         Button("Clear scan results", role: .destructive) {
@@ -54,16 +63,32 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("Scanner actions")
 
-                    Button(scanner.isScanning ? "Stop" : "Scan") {
+                    Button {
                         if scanner.isScanning {
                             scanner.stopScanning()
                         } else {
                             scanner.startScanning()
                         }
+                    } label: {
+                        Image(systemName: scanner.isScanning ? "stop.circle.fill" : "dot.radiowaves.left.and.right")
                     }
+                    .accessibilityLabel(scanner.isScanning ? "Stop scanning" : "Start scanning")
                 }
             }
+        }
+    }
+
+    private var filteredDevices: [BLEDevice] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return scanner.visibleDevices }
+
+        return scanner.visibleDevices.filter { device in
+            device.name.localizedCaseInsensitiveContains(query)
+                || device.id.uuidString.localizedCaseInsensitiveContains(query)
+                || device.serviceUUIDs.contains { $0.localizedCaseInsensitiveContains(query) }
+                || (device.manufacturerDataHex?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
@@ -90,21 +115,31 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Baseline contains \(scanner.baselineIDs.count) device identifiers. Strong new-signal threshold: \(scanner.strongSignalThreshold) dBm. Alerts require \(scanner.strongSignalConfirmationCount) consecutive strong observations.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Baseline contains \(scanner.baselineIDs.count) device identifiers. Strong new-signal threshold: \(scanner.strongSignalThreshold) dBm. Alerts require \(scanner.strongSignalConfirmationCount) consecutive strong observations.")
+
+                        if let baselineDate = scanner.baselineDate {
+                            Text("Baseline set \(baselineDate, style: .relative).")
+                        }
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
             }
 
             Section(scanner.showOnlyNew ? "New since baseline" : "Strongest first") {
-                if scanner.visibleDevices.isEmpty {
-                    ContentUnavailableView(
-                        scanner.showOnlyNew ? "No new active devices" : "No BLE advertisements yet",
-                        systemImage: "antenna.radiowaves.left.and.right",
-                        description: Text(scanner.showOnlyNew ? "New devices will appear here while scanning." : "Tap Scan and keep the app open while nearby Bluetooth Low Energy devices advertise.")
-                    )
+                if filteredDevices.isEmpty {
+                    if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        ContentUnavailableView(
+                            scanner.showOnlyNew ? "No new active devices" : "No BLE advertisements yet",
+                            systemImage: "antenna.radiowaves.left.and.right",
+                            description: Text(scanner.showOnlyNew ? "New devices will appear here while scanning." : "Tap Scan and keep the app open while nearby Bluetooth Low Energy devices advertise.")
+                        )
+                    }
                 } else {
-                    ForEach(scanner.visibleDevices) { device in
+                    ForEach(filteredDevices) { device in
                         NavigationLink {
                             DeviceDetailView(scanner: scanner, deviceID: device.id)
                         } label: {
