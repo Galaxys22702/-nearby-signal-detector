@@ -10,7 +10,7 @@ if (!repository || !token) throw new Error("GitHub repository/token unavailable.
 const apiBase = `https://api.github.com/repos/${repository}`;
 
 async function api(path) {
-  const response = await fetch(`${apiBase}/${path}`, {
+  const response = await fetch(path ? `${apiBase}/${path}` : apiBase, {
     headers: {
       accept: "application/vnd.github+json",
       authorization: `Bearer ${token}`,
