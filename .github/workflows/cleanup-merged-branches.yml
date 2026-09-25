@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/cleanup-merged-branches.yml"
       - "scripts/cleanup-merged-branches.mjs"
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
