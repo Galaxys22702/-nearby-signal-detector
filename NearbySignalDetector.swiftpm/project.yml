@@ -19,7 +19,6 @@ targets:
       - path: Models
       - path: Services
       - path: Views
-    resources:
       - path: Assets.xcassets
     settings:
       base:
