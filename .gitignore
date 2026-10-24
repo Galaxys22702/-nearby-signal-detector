@@ -1,0 +1,20 @@
+# macOS and editor state
+.DS_Store
+*.xcuserstate
+xcuserdata/
+
+# Generated Swift and Xcode build output
+.build/
+.swiftpm/
+Build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+*.xcarchive/
+*.ipa
+
+# Local signing credentials
+*.p8
+*.p12
+*.mobileprovision
+*.provisionprofile

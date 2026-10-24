@@ -1,5 +1,8 @@
 name: Build unsigned iPhone IPA
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -20,6 +23,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -44,6 +49,15 @@ jobs:
             CODE_SIGN_IDENTITY='' \
             CONFIGURATION_BUILD_DIR="$PWD/Build/Device" \
             clean build
+
+      - name: Verify bundled app icon
+        working-directory: NearbySignalDetector.swiftpm
+        run: |
+          set -euo pipefail
+          APP_PATH="Build/Device/NearbySignalDetector.app"
+          test -s "$APP_PATH/Assets.car"
+          ICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$APP_PATH/Info.plist")
+          test "$ICON_NAME" = AppIcon
 
       - name: Package unsigned IPA
         working-directory: NearbySignalDetector.swiftpm
