@@ -8,6 +8,10 @@ on:
     paths:
       - 'NearbySignalDetector.swiftpm/**'
       - '.github/workflows/unsigned-ipa.yml'
+  pull_request:
+    paths:
+      - 'NearbySignalDetector.swiftpm/**'
+      - '.github/workflows/unsigned-ipa.yml'
   workflow_dispatch:
 
 jobs:
@@ -29,7 +33,6 @@ jobs:
         run: |
           set -o pipefail
           rm -rf Build/Device Build/Payload Build/NearbySignalDetector-unsigned.ipa
-          mkdir -p Build/Device
           xcodebuild \
             -project NearbySignalDetector.xcodeproj \
             -scheme NearbySignalDetector \
